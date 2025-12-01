@@ -2,20 +2,15 @@
 #include <ArduinoMqttClient.h>
 
 #include "UiCom.h"
-#include "stateHolder.h"
+#include "StateHolder.h"
 
-// ESP-IDF 5.x WPA2-Enterprise API
 #include "esp_wifi.h"
 #include "esp_eap_client.h"
 
-// ===================================================
-// Credentials
-// ===================================================
 const char* ssid = "eduroam";
 const char* username = "zcabddw@ucl.ac.uk";
 const char* password = "toVmom-gaggyx-0jejgi";
 
-// ThingsBoard
 const char* mqttServer = "demo.thingsboard.io";
 const int mqttPort = 1883;
 const char* token = "exn0x81mpavwoa4oizjb";
@@ -23,17 +18,11 @@ const char* token = "exn0x81mpavwoa4oizjb";
 WiFiClient wifiClient;
 MqttClient mqttClient(wifiClient);
 
-
-// ===================================================
-// WiFi - WPA2 Enterprise (eduroam)
-// ===================================================
 void connectWiFi() {
     WiFi.mode(WIFI_STA);
 
-    // Enable WPA2-Enterprise mode
     esp_wifi_sta_enterprise_enable();
 
-    // Identity + credentials
     esp_eap_client_set_identity((const uint8_t*)username, strlen(username));
     esp_eap_client_set_username((const uint8_t*)username, strlen(username));
     esp_eap_client_set_password((const uint8_t*)password, strlen(password));
@@ -48,73 +37,47 @@ void connectWiFi() {
     Serial.println("\nConnected to eduroam!");
 }
 
-
-// ===================================================
-// Helper: Extract number from JSON
-// ===================================================
-float extractNumber(const String& json, const String& key) {
-    int idx = json.indexOf(key);
-    if (idx == -1) return NAN;
-
-    idx = json.indexOf(":", idx);
-    if (idx == -1) return NAN;
-
-    int start = idx + 1;
-
-    int end = start;
-    while (end < json.length() &&
-          (isdigit(json[end]) || json[end] == '.' || json[end] == '-')) {
-        end++;
-    }
-
-    String numStr = json.substring(start, end);
-    return numStr.toFloat();
+float extract(const String& p, const String& key) {
+    int i = p.indexOf(key);
+    if (i < 0) return NAN;
+    i = p.indexOf(":", i);
+    if (i < 0) return NAN;
+    int s = i + 1;
+    while (s < p.length() && (p[s] == ' ' || p[s] == '\"')) s++;
+    int e = s;
+    while (e < p.length() && (isdigit(p[e]) || p[e] == '.' || p[e] == '-')) e++;
+    return p.substring(s, e).toFloat();
 }
 
-
-// ===================================================
-// Helper: Print ALL setpoints
-// ===================================================
 void printSetpoints() {
     Serial.println("========== CURRENT SETPOINTS ==========");
-    Serial.println("Target RPM : " + String(reactorState.targetrpM));
+    Serial.println("Target RPM : " + String(reactorState.targetRpm));
     Serial.println("Target pH  : " + String(reactorState.targetpH));
     Serial.println("Target Temp: " + String(reactorState.targetTemp));
     Serial.println("========================================");
 }
 
-
-// ===================================================
-// Handle shared attributes manually
-// ===================================================
-void onAttributeUpdate(int messageSize) {
-    String topic = mqttClient.messageTopic();
+void onAttributeUpdate(int size) {
     String payload;
-
-    while (mqttClient.available()) {
-        payload += (char)mqttClient.read();
-    }
+    while (mqttClient.available()) payload += (char)mqttClient.read();
 
     Serial.println("Attribute update: " + payload);
 
-    // Example payload:
-    // {"shared":{"setRPM":1200,"setPH":6.5,"setTemp":32}}
-
-    float rpm = extractNumber(payload, "\"setRPM\"");
+    float rpm = extract(payload, "setRPM");
     if (!isnan(rpm)) {
-        reactorState.targetRPM = (int)rpm;
-        Serial.println("Updated setRPM = " + String(reactorState.targetRPM));
+        reactorState.targetRpm = rpm;
+        Serial.println("Updated setRPM = " + String(reactorState.targetRpm));
         printSetpoints();
     }
 
-    float ph = extractNumber(payload, "\"setPH\"");
+    float ph = extract(payload, "setPH");
     if (!isnan(ph)) {
-        reactorState.targetPH = ph;
+        reactorState.targetpH = ph;
         Serial.println("Updated setPH = " + String(reactorState.targetpH));
         printSetpoints();
     }
 
-    float temp = extractNumber(payload, "\"setTemp\"");
+    float temp = extract(payload, "setTemp");
     if (!isnan(temp)) {
         reactorState.targetTemp = temp;
         Serial.println("Updated setTemp = " + String(reactorState.targetTemp));
@@ -122,10 +85,6 @@ void onAttributeUpdate(int messageSize) {
     }
 }
 
-
-// ===================================================
-// MQTT connect + subscribe to shared attributes
-// ===================================================
 void connectMQTT() {
     Serial.print("Connecting to MQTT... ");
 
@@ -145,10 +104,6 @@ void connectMQTT() {
     Serial.println("Subscribed to shared attributes.");
 }
 
-
-// ===================================================
-// Telemetry send
-// ===================================================
 void sendTelemetry() {
     String payload =
         "{\"ph\":" + String(reactorState.currentPH) +
@@ -163,10 +118,6 @@ void sendTelemetry() {
     Serial.println("Telemetry sent: " + payload);
 }
 
-
-// ===================================================
-// Init + Loop
-// ===================================================
 void initUI() {
     connectWiFi();
     connectMQTT();
@@ -180,6 +131,8 @@ void handleUI() {
     mqttClient.poll();
     sendTelemetry();
 }
+
+
 
 
 
