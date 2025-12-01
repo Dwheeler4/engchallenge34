@@ -51,8 +51,8 @@ float extract(const String& p, const String& key) {
 
 void printSetpoints() {
     Serial.println("========== CURRENT SETPOINTS ==========");
-    Serial.println("Target RPM : " + String(reactorState.targetRPM));
-    Serial.println("Target pH  : " + String(reactorState.targetPH));
+    Serial.println("Target RPM : " + String(reactorState.targetRpm));
+    Serial.println("Target pH  : " + String(reactorState.targetpH));
     Serial.println("Target Temp: " + String(reactorState.targetTemp));
     Serial.println("========================================");
 }
@@ -65,15 +65,15 @@ void onAttributeUpdate(int size) {
 
     float rpm = extract(payload, "targetRPM");
     if (!isnan(rpm)) {
-        reactorState.targetRPM = rpm;
-        Serial.println("Updated targetRPM = " + String(reactorState.targetRPM));
+        reactorState.targetRpm = rpm;
+        Serial.println("Updated targetRPM = " + String(reactorState.targetRpm));
         printSetpoints();
     }
 
     float ph = extract(payload, "targetPH");
     if (!isnan(ph)) {
-        reactorState.targetPH = ph;
-        Serial.println("Updated targetPH = " + String(reactorState.targetPH));
+        reactorState.targetpH = ph;
+        Serial.println("Updated targetPH = " + String(reactorState.targetpH));
         printSetpoints();
     }
 
@@ -83,6 +83,15 @@ void onAttributeUpdate(int size) {
         Serial.println("Updated targetTemp = " + String(reactorState.targetTemp));
         printSetpoints();
     }
+}
+
+void requestInitialAttributes() {
+    String req = "{\"shared\":[\"targetRPM\",\"targetPH\",\"targetTemp\"]}";
+    mqttClient.beginMessage("v1/devices/me/attributes/request/1");
+    mqttClient.print(req);
+    mqttClient.endMessage();
+
+    Serial.println("Requested initial shared attributes.");
 }
 
 void connectMQTT() {
@@ -99,9 +108,13 @@ void connectMQTT() {
     Serial.println("Connected to MQTT.");
 
     mqttClient.onMessage(onAttributeUpdate);
+
     mqttClient.subscribe("v1/devices/me/attributes");
+    mqttClient.subscribe("v1/devices/me/attributes/response/+");
 
     Serial.println("Subscribed to shared attributes.");
+
+    requestInitialAttributes();
 }
 
 void sendTelemetry() {
@@ -131,6 +144,7 @@ void handleUI() {
     mqttClient.poll();
     sendTelemetry();
 }
+
 
 
 
