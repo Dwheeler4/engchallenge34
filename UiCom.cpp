@@ -51,8 +51,8 @@ float extract(const String& p, const String& key) {
 
 void printSetpoints() {
     Serial.println("========== CURRENT SETPOINTS ==========");
-    Serial.println("Target RPM : " + String(reactorState.targetRpm));
-    Serial.println("Target pH  : " + String(reactorState.targetpH));
+    Serial.println("Target RPM : " + String(reactorState.targetRPM));
+    Serial.println("Target pH  : " + String(reactorState.targetPH));
     Serial.println("Target Temp: " + String(reactorState.targetTemp));
     Serial.println("========================================");
 }
@@ -65,15 +65,15 @@ void onAttributeUpdate(int size) {
 
     float rpm = extract(payload, "targetRPM");
     if (!isnan(rpm)) {
-        reactorState.targetRpm = rpm;
-        Serial.println("Updated targetRPM = " + String(reactorState.targetRpm));
+        reactorState.targetRPM = rpm;
+        Serial.println("Updated targetRPM = " + String(reactorState.targetRPM));
         printSetpoints();
     }
 
     float ph = extract(payload, "targetPH");
     if (!isnan(ph)) {
-        reactorState.targetpH = ph;
-        Serial.println("Updated targetPH = " + String(reactorState.targetpH));
+        reactorState.targetPH = ph;
+        Serial.println("Updated targetPH = " + String(reactorState.targetPH));
         printSetpoints();
     }
 
@@ -144,6 +144,7 @@ void handleUI() {
     mqttClient.poll();
     sendTelemetry();
 }
+
 
 
 
