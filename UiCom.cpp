@@ -7,6 +7,8 @@
 #include "esp_wifi.h"
 #include "esp_eap_client.h"
 
+#include <Wire.h>
+
 const char* ssid = "eduroam";
 const char* username = "zcabddw@ucl.ac.uk";
 const char* password = "toVmom-gaggyx-0jejgi";
@@ -142,6 +144,44 @@ void handleUI() {
     mqttClient.poll();
     sendTelemetry();
 }
+
+void sendSetpoints() {
+  uint8_t buf[3 * sizeof(float)];
+  memcpy(&buf[0 * sizeof(float)], &reactorState.
+  targetPH,   sizeof(float));
+  memcpy(&buf[1 * sizeof(float)], &reactorState.
+  targetTemp, sizeof(float));
+  memcpy(&buf[2 * sizeof(float)], &reactorState.
+  targetRPM,  sizeof(float));
+
+  Wire.beginTransmission(0x10);
+  Wire.write(buf, sizeof(buf));
+  Wire.endTransmission();
+}
+
+void readMeasurements() {
+  int bytesToRead = 3 * sizeof(float);
+  Wire.requestFrom(0x10, bytesToRead);
+
+  if (Wire.available() < bytesToRead) return;
+
+  uint8_t buf[3 * sizeof(float)];
+  for (int i = 0; i < bytesToRead; i++) {
+    buf[i] = Wire.read();
+  }
+
+  memcpy(&reactorState.currentPH,   &buf[0 * sizeof(float)], sizeof(float));
+  memcpy(&reactorState.currentTemp, &buf[1 * sizeof(float)], sizeof(float));
+  memcpy(&reactorState.currentRPM,  &buf[2 * sizeof(float)], sizeof(float));
+
+  Serial.print("Current: PH=");
+  Serial.print(reactorState.currentPH);
+  Serial.print(" Temp=");
+  Serial.print(reactorState.currentTemp);
+  Serial.print(" RPM=");
+  Serial.println(reactorState.currentRPM);
+}
+
 
 
 
