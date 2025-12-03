@@ -38,12 +38,16 @@ void connectWiFi() {
 }
 
 float extract(const String& p, const String& key) {
-    int i = p.indexOf(key);
-    if (i < 0) return NAN;
-    i = p.indexOf(":", i);
-    if (i < 0) return NAN;
-    int s = i + 1;
-    while (s < p.length() && (p[s] == ' ' || p[s] == '\"')) s++;
+    int pos = p.indexOf(key);
+    if (pos < 0) {
+        int sharedPos = p.indexOf("shared");
+        if (sharedPos >= 0) pos = p.indexOf(key, sharedPos);
+        if (pos < 0) return NAN;
+    }
+    int colon = p.indexOf(":", pos);
+    if (colon < 0) return NAN;
+    int s = colon + 1;
+    while (s < p.length() && (p[s] == ' ' || p[s] == '"' )) s++;
     int e = s;
     while (e < p.length() && (isdigit(p[e]) || p[e] == '.' || p[e] == '-')) e++;
     return p.substring(s, e).toFloat();
@@ -61,32 +65,26 @@ void onAttributeUpdate(int size) {
     String payload;
     while (mqttClient.available()) payload += (char)mqttClient.read();
 
-    Serial.println("Attribute update: " + payload);
+    int sharedIndex = payload.indexOf("shared");
+    if (sharedIndex >= 0) {
+        payload = payload.substring(sharedIndex);
+    }
 
     float rpm = extract(payload, "targetRPM");
-    if (!isnan(rpm)) {
-        reactorState.targetRPM = rpm;
-        Serial.println("Updated targetRPM = " + String(reactorState.targetRPM));
-        printSetpoints();
-    }
+    if (!isnan(rpm)) reactorState.targetRPM = rpm;
 
     float ph = extract(payload, "targetPH");
-    if (!isnan(ph)) {
-        reactorState.targetPH = ph;
-        Serial.println("Updated targetPH = " + String(reactorState.targetPH));
-        printSetpoints();
-    }
+    if (!isnan(ph)) reactorState.targetPH = ph;
 
     float temp = extract(payload, "targetTemp");
-    if (!isnan(temp)) {
-        reactorState.targetTemp = temp;
-        Serial.println("Updated targetTemp = " + String(reactorState.targetTemp));
-        printSetpoints();
-    }
+    if (!isnan(temp)) reactorState.targetTemp = temp;
+
+    printSetpoints();
 }
 
+
 void requestInitialAttributes() {
-    String req = "{\"shared\":[\"targetRPM\",\"targetPH\",\"targetTemp\"]}";
+    String req = "{\"sharedKeys\":\"targetRPM,targetPH,targetTemp\"}";
     mqttClient.beginMessage("v1/devices/me/attributes/request/1");
     mqttClient.print(req);
     mqttClient.endMessage();
@@ -144,6 +142,7 @@ void handleUI() {
     mqttClient.poll();
     sendTelemetry();
 }
+
 
 
 
